@@ -1,33 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:abayka/features/auth/data/auth_repository.dart';
+import 'package:abayka/services/auth_repository.dart';
 
-class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  Future<void> _signUp() async {
+  Future<void> _signIn() async {
     setState(() => _isLoading = true);
     try {
-      await ref.read(authRepositoryProvider).signUp(
+      await ref.read(authRepositoryProvider).signIn(
             _emailController.text.trim(),
             _passwordController.text.trim(),
           );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Check your email for confirmation link')),
-        );
-        context.go('/login');
-      }
+      // Navigation is handled by the router redirect
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -42,7 +37,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
+      appBar: AppBar(title: const Text('Вход')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -55,19 +50,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(labelText: 'Пароль'),
               obscureText: true,
             ),
             const SizedBox(height: 24),
             _isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
-                    onPressed: _signUp,
-                    child: const Text('Sign Up'),
+                    onPressed: _signIn,
+                    child: const Text('Войти'),
                   ),
             TextButton(
-              onPressed: () => context.go('/login'),
-              child: const Text('Already have an account? Login'),
+              onPressed: () => context.go('/register'),
+              child: const Text('Создать аккаунт'),
             ),
           ],
         ),

@@ -1,32 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:abayka/features/auth/data/auth_repository.dart';
+import 'package:abayka/services/auth_repository.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends ConsumerStatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  Future<void> _signIn() async {
+  Future<void> _signUp() async {
     setState(() => _isLoading = true);
     try {
-      await ref.read(authRepositoryProvider).signIn(
+      await ref.read(authRepositoryProvider).signUp(
             _emailController.text.trim(),
             _passwordController.text.trim(),
           );
-      // Navigation is handled by the router redirect
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Проверьте вашу почту для подтверждения')),
+        );
+        context.go('/login');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Ошибка: $e')),
         );
       }
     } finally {
@@ -37,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(title: const Text('Регистрация')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -50,19 +55,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(labelText: 'Пароль'),
               obscureText: true,
             ),
             const SizedBox(height: 24),
             _isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
-                    onPressed: _signIn,
-                    child: const Text('Sign In'),
+                    onPressed: _signUp,
+                    child: const Text('Зарегистрироваться'),
                   ),
             TextButton(
-              onPressed: () => context.go('/register'),
-              child: const Text('Create an account'),
+              onPressed: () => context.go('/login'),
+              child: const Text('Уже есть аккаунт? Войти'),
             ),
           ],
         ),

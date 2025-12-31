@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:abayka/features/auth/data/auth_repository.dart';
-import 'package:abayka/features/auth/presentation/login_screen.dart';
-import 'package:abayka/features/auth/presentation/register_screen.dart';
-import 'package:abayka/features/admin/presentation/admin_dashboard.dart';
-import 'package:abayka/features/admin/presentation/users_management_screen.dart';
-import 'package:abayka/features/products/presentation/admin_products_screen.dart';
-import 'package:abayka/features/products/presentation/add_product_screen.dart';
-import 'package:abayka/features/shop/presentation/product_details_screen.dart';
-import 'package:abayka/features/user/presentation/user_dashboard.dart';
-import 'package:abayka/features/products/domain/product.dart';
-import 'package:abayka/features/home/presentation/splash_screen.dart';
+import 'package:abayka/services/auth_repository.dart';
+import 'package:abayka/screens/login_screen.dart';
+import 'package:abayka/screens/signup_screen.dart';
+import 'package:abayka/screens/admin/admin_dashboard_screen.dart';
+import 'package:abayka/screens/admin/admin_users_screen.dart';
+import 'package:abayka/screens/admin/admin_products_screen.dart';
+import 'package:abayka/screens/admin/add_product_screen.dart';
+import 'package:abayka/screens/user/product_details_screen.dart';
+import 'package:abayka/screens/user_screen.dart';
+import 'package:abayka/product.dart';
+import 'package:abayka/screens/splash_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -46,7 +46,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: 'add',
-                builder: (context, state) => const AddProductScreen(),
+                builder: (context, state) {
+                  final product = state.extra as Product?;
+                  return AddProductScreen(product: product);
+                },
               ),
             ],
           ),

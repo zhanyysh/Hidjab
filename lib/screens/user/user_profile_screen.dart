@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:abayka/features/auth/data/auth_repository.dart';
-import 'package:abayka/features/shop/data/shop_repository.dart';
+import 'package:abayka/services/auth_repository.dart';
+import 'package:abayka/services/shop_repository.dart';
+import 'package:abayka/order.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   const UserProfileScreen({super.key});
@@ -12,7 +13,7 @@ class UserProfileScreen extends ConsumerStatefulWidget {
 
 class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   bool _isLoading = true;
-  List<Map<String, dynamic>> _orders = [];
+  List<OrderModel> _orders = [];
 
   @override
   void initState() {
@@ -59,27 +60,27 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         ),
         const SizedBox(height: 32),
         const Text(
-          'My Orders',
+          'Мои заказы',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
         else if (_orders.isEmpty)
-          const Center(child: Text('No orders yet'))
+          const Center(child: Text('Заказов пока нет'))
         else
           ..._orders.map((order) {
-            final product = order['products'] as Map<String, dynamic>?;
-            final productName = product?['name'] ?? 'Unknown Product';
-            final price = order['total_price'];
-            final date = DateTime.parse(order['created_at']).toLocal().toString().split('.')[0];
+            final product = order.product;
+            final productName = product?['name'] ?? 'Неизвестный товар';
+            final price = order.totalPrice;
+            final date = order.createdAt.toLocal().toString().split('.')[0];
 
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: const Icon(Icons.shopping_bag),
                 title: Text(productName),
-                subtitle: Text('Date: $date'),
+                subtitle: Text('Дата: $date'),
                 trailing: Text(
                   '\$$price',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -91,7 +92,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         ElevatedButton.icon(
           onPressed: () => ref.read(authRepositoryProvider).signOut(),
           icon: const Icon(Icons.logout),
-          label: const Text('Sign Out'),
+          label: const Text('Выйти'),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red[100],
             foregroundColor: Colors.red,
