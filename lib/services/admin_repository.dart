@@ -5,6 +5,16 @@ final adminRepositoryProvider = Provider<AdminRepository>((ref) {
   return AdminRepository(Supabase.instance.client);
 });
 
+final usersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final repository = ref.watch(adminRepositoryProvider);
+  return repository.getUsers();
+});
+
+final adminLogsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  final repository = ref.watch(adminRepositoryProvider);
+  return repository.getLogsStream();
+});
+
 class AdminRepository {
   final SupabaseClient _supabase;
 
@@ -44,33 +54,11 @@ class AdminRepository {
 
   // Accept order and decrement stock
   Future<void> acceptOrder(String orderId, String productId, int quantity) async {
-    try {
-      // Try using RPC first
-      await _supabase.rpc('accept_order', params: {
-        'order_id': orderId,
-      });
-    } catch (e) {
-      // Fallback to client-side logic if RPC fails (e.g. function not defined)
-      final productResponse = await _supabase
-          .from('products')
-          .select('quantity')
-          .eq('id', productId)
-          .single();
-      
-      final currentQuantity = productResponse['quantity'] as int;
-      
-      if (currentQuantity < quantity) {
-        throw Exception('Недостаточно товара на складе. Остаток: $currentQuantity');
-      }
-
-      await _supabase.from('products').update({
-        'quantity': currentQuantity - quantity,
-      }).eq('id', productId);
-
-      await _supabase.from('orders').update({
-        'status': 'accepted',
-      }).eq('id', orderId);
-    }
+    // Using RPC is critical here to prevent race conditions.
+    // The database function handles the transaction: checking stock, decrementing it, and updating order status atomically.
+    await _supabase.rpc('accept_order', params: {
+      'order_id': orderId,
+    });
     
     await logAction('accept_order', {'order_id': orderId, 'product_id': productId, 'quantity': quantity});
   }
@@ -94,5 +82,14 @@ class AdminRepository {
         .select()
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  // Stream admin logs
+  Stream<List<Map<String, dynamic>>> getLogsStream() {
+    return _supabase
+        .from('admin_logs')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .map((event) => List<Map<String, dynamic>>.from(event));
   }
 }

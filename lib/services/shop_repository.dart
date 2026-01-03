@@ -6,6 +6,11 @@ final shopRepositoryProvider = Provider<ShopRepository>((ref) {
   return ShopRepository(Supabase.instance.client);
 });
 
+final allOrdersStreamProvider = StreamProvider<List<OrderModel>>((ref) {
+  final repository = ref.watch(shopRepositoryProvider);
+  return repository.getAllOrdersStream();
+});
+
 class ShopRepository {
   final SupabaseClient _supabase;
 
@@ -45,5 +50,19 @@ class ShopRepository {
         .order('created_at', ascending: false);
     
     return (response as List).map((e) => OrderModel.fromMap(e)).toList();
+  }
+
+  // Delete order
+  Future<void> deleteOrder(String orderId) async {
+    await _supabase.from('orders').delete().eq('id', orderId);
+  }
+
+  // Stream all orders (auto-updates)
+  Stream<List<OrderModel>> getAllOrdersStream() {
+    return _supabase
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .asyncMap((_) async => await getAllOrders());
   }
 }

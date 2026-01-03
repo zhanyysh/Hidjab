@@ -43,6 +43,25 @@ class ProductsRepository {
     await _supabase.from('products').delete().eq('id', id);
   }
 
+  Future<void> deleteProductWithOrders(String id) async {
+    // Пытаемся удалить через стандартный метод.
+    // Для работы этого метода НЕОБХОДИМО выполнить SQL скрипт fix_deletion.sql в Supabase,
+    // чтобы включить ON DELETE CASCADE для таблицы orders.
+    try {
+      await _supabase.from('products').delete().eq('id', id);
+    } catch (e) {
+      // Если каскадное удаление не настроено, пробуем через исправленную RPC функцию
+      try {
+        await _supabase.rpc('delete_product_with_orders', params: {'target_product_id': id});
+      } catch (rpcError) {
+        // Если и RPC не работает, пробрасываем оригинальную ошибку
+        print('Delete failed: $e');
+        print('RPC fallback failed: $rpcError');
+        rethrow;
+      }
+    }
+  }
+
   Future<List<String>> uploadImages(List<File> imageFiles) async {
     final List<String> imageUrls = [];
     for (var imageFile in imageFiles) {

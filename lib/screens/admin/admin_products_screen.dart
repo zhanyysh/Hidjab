@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:abayka/services/products_repository.dart';
 import 'package:abayka/product.dart';
 
@@ -48,16 +49,67 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
     if (confirm == true) {
       try {
         await ref.read(productsRepositoryProvider).deleteProduct(id);
+        // Force refresh the list
+        ref.invalidate(productsStreamProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Товар удален')),
           );
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка при удалении товара: $e')),
-          );
+        bool isForeignKeyError = false;
+        if (e is PostgrestException && e.code == '23503') {
+          isForeignKeyError = true;
+        } else if (e.toString().contains('23503') || e.toString().contains('foreign key constraint')) {
+          isForeignKeyError = true;
+        }
+
+        if (isForeignKeyError) {
+          if (mounted) {
+            final forceDelete = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Ошибка удаления'),
+                content: const Text(
+                    'Этот товар связан с существующими заказами. Удалить товар и все связанные с ним заказы?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Отмена'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Удалить всё', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            );
+
+            if (forceDelete == true) {
+              try {
+                await ref.read(productsRepositoryProvider).deleteProductWithOrders(id);
+                // Force refresh the list
+                ref.invalidate(productsStreamProvider);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Товар и связанные заказы удалены')),
+                  );
+                }
+              } catch (e2) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Ошибка при принудительном удалении: $e2')),
+                  );
+                }
+              }
+            }
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Ошибка при удалении товара: $e')),
+            );
+          }
         }
       }
     }
@@ -105,6 +157,8 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
           variants: product.variants,
         );
         await ref.read(productsRepositoryProvider).updateProduct(updatedProduct);
+        // Force refresh the list
+        ref.invalidate(productsStreamProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Скидка обновлена')),
