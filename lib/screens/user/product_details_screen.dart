@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:abayka/product.dart';
 import 'package:abayka/order.dart';
 import 'package:abayka/services/shop_repository.dart';
@@ -59,53 +60,94 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final savedAddress = prefs.getString('user_address') ?? '';
+    double? lat = prefs.getDouble('user_lat');
+    double? lng = prefs.getDouble('user_lng');
     final addressController = TextEditingController(text: savedAddress);
 
     final shouldBuy = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Оформление заказа'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: addressController,
-              decoration: const InputDecoration(
-                labelText: 'Адрес доставки',
-                hintText: 'Введите ваш адрес',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-            if (savedAddress.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'Использован сохраненный адрес',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (addressController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Введите адрес')),
-                );
-                return;
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          bool isLoadingLocation = false;
+
+          Future<void> getCurrentLocation() async {
+            setState(() => isLoadingLocation = true);
+            try {
+              LocationPermission permission = await Geolocator.checkPermission();
+              if (permission == LocationPermission.denied) {
+                permission = await Geolocator.requestPermission();
+                if (permission == LocationPermission.denied) return;
               }
-              Navigator.pop(context, true);
-            },
-            child: const Text('Купить'),
-          ),
-        ],
+              if (permission == LocationPermission.deniedForever) return;
+
+              final position = await Geolocator.getCurrentPosition();
+              setState(() {
+                lat = position.latitude;
+                lng = position.longitude;
+              });
+            } catch (e) {
+              // ignore
+            } finally {
+              setState(() => isLoadingLocation = false);
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Оформление заказа'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Адрес доставки (комментарий)',
+                    hintText: 'Введите ваш адрес',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+                if (lat != null && lng != null)
+                  Text('Геопозиция: ${lat!.toStringAsFixed(6)}, ${lng!.toStringAsFixed(6)}', style: const TextStyle(fontSize: 12, color: Colors.green)),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: isLoadingLocation ? null : getCurrentLocation,
+                  icon: isLoadingLocation 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) 
+                      : const Icon(Icons.my_location),
+                  label: Text(lat != null ? 'Обновить геопозицию' : 'Добавить геопозицию'),
+                ),
+                if (savedAddress.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      'Использован сохраненный адрес',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Отмена'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (addressController.text.isEmpty && (lat == null || lng == null)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Введите адрес или укажите геопозицию')),
+                    );
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
+                child: const Text('Купить'),
+              ),
+            ],
+          );
+        }
       ),
     );
 
@@ -127,6 +169,8 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> {
         variantColor: _selectedVariant?.color,
         variantSize: _selectedVariant?.size,
         address: addressController.text,
+        locationLat: lat,
+        locationLng: lng,
       );
 
       await ref.read(shopRepositoryProvider).placeOrder(order);

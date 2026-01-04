@@ -9,6 +9,8 @@ class OrderModel {
   final String? variantColor;
   final String? variantSize;
   final String? address;
+  final double? locationLat;
+  final double? locationLng;
   final Map<String, dynamic>? product; // Joined product data
 
   OrderModel({
@@ -22,6 +24,8 @@ class OrderModel {
     this.variantColor,
     this.variantSize,
     this.address,
+    this.locationLat,
+    this.locationLng,
     this.product,
   });
 
@@ -37,6 +41,8 @@ class OrderModel {
       variantColor: map['variant_color'] as String?,
       variantSize: map['variant_size'] as String?,
       address: map['address'] as String?,
+      locationLat: (map['location_lat'] as num?)?.toDouble(),
+      locationLng: (map['location_lng'] as num?)?.toDouble(),
       product: map['products'] as Map<String, dynamic>?,
     );
   }
@@ -51,6 +57,8 @@ class OrderModel {
       'variant_color': variantColor,
       'variant_size': variantSize,
       'address': address,
+      'location_lat': locationLat,
+      'location_lng': locationLng,
     };
   }
 }
